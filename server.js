@@ -174,6 +174,14 @@ const db = new sqlite3.Database("snack.db", (err) => {
         "peso"    INTEGER NOT NULL CHECK(peso > 0), \
         "calorie"    INTEGER NOT NULL CHECK(calorie > 0), \
         PRIMARY KEY("nome"))');
+        db.run( '   INSERT OR IGNORE INTO "Snack" ("nome", "categoria", "prezzo", "peso", "calorie")  '   +
+            '   VALUES                                                                  '   +
+            '   ("patatine classiche", "salato", 1.99, 100, 500),                       '   +
+            '   ("patatine paprika", "salato", 2.49, 80, 420),                          '   +
+            '   ("cioccolato al latte", "dolce", 1.50, 50, 250),                        '   +
+            '   ("barretta energetica", "salute", 1.99, 45, 180),                       '   +   
+            '   ("biscotti integrali", "dolce", 2.39, 120, 480);                        '   
+    );
 
 });
 
