@@ -5,13 +5,19 @@ const app = express();
 
 app.use(express.json());
 
-app.put("/Snack", (req, res) => {
+app.put("/snack", (req, res) => {
     const db = new sqlite3.Database("snack.db", (err) => {
         if (err) {
             console.error("Errore apertura DB:", err.message);
             return res.status(500).send(err.message);
         }
     });
+
+    function calorie_grammo(peso, calorie) {
+        return peso * calorie / 100;
+    }
+
+    const calorie_totali = calorie_grammo(req.body.peso, req.body.calorie);
 
     const stmt = db.prepare("INSERT INTO Snack (nome, categoria, prezzo, peso, calorie) VALUES (?,?,?,?,?);");
 
@@ -27,9 +33,10 @@ app.put("/Snack", (req, res) => {
         }
     )});
 
+    // Eseguiamo la query con stmt.run
     const prodotto = req.body;
 
-    stmt.run(prodotto.nome, prodotto.categoria, prodotto.prezzo, prodotto.peso, prodotto.calorie, (err) => {
+    stmt.run(prodotto.nome.toLowerCase(), prodotto.categoria.toLowerCase(), prodotto.prezzo, prodotto.peso, calorie_totali, (err) => {
 
         if (err) {
             console.error("Errore Run:", err.message);
@@ -66,7 +73,7 @@ app.get("/snack/:nome", (req, res) => {
     });
 
     // Eseguiamo la query con stmt.all
-    stmt.all((err, rows) => {
+    stmt.all(req.params.nome, (err, rows) => {
         if (err) {
             console.error("Errore Query:", err.message);
             res.status(500).send(err.message);
@@ -85,8 +92,8 @@ app.get("/snack/:nome", (req, res) => {
 
 });
 
+
 app.get("/cat/:categoria", (req, res) => {
-    
     const db = new sqlite3.Database("snack.db", (err) => {
         if (err) {
             console.error("Errore apertura DB:", err.message);
@@ -94,42 +101,29 @@ app.get("/cat/:categoria", (req, res) => {
         }
     });
 
-    let stmt = db.prepare("SELECT * FROM Snack WHERE categoria = ?;");
+    // Query parametrizzata per evitare SQL Injection
+    const query = "SELECT * FROM Snack WHERE categoria = ?";
 
-     // Gestiamo l'evento error dello statement
-    stmt.on("error", (error) => {
-        console.error("Errore Statement:", error.message);
-        res.status(500).send(error.message);
-        stmt.finalize((errFinalize) => {
-            if (errFinalize) console.error("Errore Finalize:", errFinalize.message);
-        });
+    // Eseguiamo la query direttamente con db.all
+    db.all(query, [req.params.categoria], (err, rows) => {
+        // Chiudiamo il database prima di inviare la risposta
         db.close((errClose) => {
-            if (errClose) console.error("Errore Close:", errClose.message);
+            if (errClose) console.error("Errore chiusura DB:", errClose.message);
         });
-    });
 
-    // Eseguiamo la query con stmt.all
-    stmt.all(req.params.categoria, (err, rows) => {
         if (err) {
             console.error("Errore Query:", err.message);
-            res.status(500).send(err.message);
-        } else {
-            res.json(rows);
+            return res.status(500).send(err.message);
         }
+
+        // Invia i risultati
+        res.json(rows);
     });
+});
 
 
-        // Chiudiamo statement e database dopo aver inviato la risposta
-        stmt.finalize((errFinalize) => {
-            if (errFinalize) console.error("Errore Finalize:", errFinalize.message);
-        });
-        db.close((errClose) => {
-            if (errClose) console.error("Errore Close:", errClose.message);
-        });
-    });
 
-
-    app.get("/Snack/:calorie", (req, res) => {
+    app.get("/cal/:calorie", (req, res) => {
 
         const db = new sqlite3.Database("snack.db", (err) => {
             if (err) {
@@ -151,8 +145,21 @@ app.get("/cat/:categoria", (req, res) => {
             db.close((errClose) => {
                 if (errClose) console.error("Errore Close:", errClose.message);
             });
-        }
-    );
+        })
+        stmt.all(req.params.calorie, (err, rows) => {
+            // Chiudiamo il database prima di inviare la risposta
+            db.close((errClose) => {
+                if (errClose) console.error("Errore chiusura DB:", errClose.message);
+            });
+    
+            if (err) {
+                console.error("Errore Query:", err.message);
+                return res.status(500).send(err.message);
+            }
+    
+            // Invia i risultati
+            res.json(rows);
+        })
 });
 
 const db = new sqlite3.Database("snack.db", (err) => {
@@ -171,6 +178,9 @@ const db = new sqlite3.Database("snack.db", (err) => {
 });
 
 
+
 app.listen(3000, () => {
     console.log("Server in ascolto sulla porta 3000");
 });
+
+
